@@ -4,12 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-
+#include <netdb.h>
 //#include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
 
 #include "list.h"
+#include "network.c"
 
 int main(int argCount, char** args){
     // Check number of input arguments for validity
@@ -46,6 +47,19 @@ int main(int argCount, char** args){
     printf("successful arguments supplied!\n");
     printf("s-talk %d %s %d\n", my_port, rem_name, rem_port);
 
+    struct sockaddr_in* local;
+    struct sockaddr_in* remote;
+
+    int localSocket = initReceiver(args[1], &local);
+    int remoteSocket = initSender(args[2], args[3], &remote);
+    while (1){
+
+
+
+        
+    }
+    close(localSocket);
+    close(remoteSocket);
     // TODO!!!
     // setup the threads, sockets, etc.
 
