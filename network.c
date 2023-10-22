@@ -30,6 +30,7 @@ int initReceiver(char* port, struct sockaddr_in** localAddress){
     sin = localAddressInfo->ai_addr;
     int socketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
     if (socketDescriptor == -1){
+        close(socketDescriptor);
         perror("ERROR in INIT RECEIVER Socket creation");
         return -1;
     }
@@ -86,6 +87,7 @@ int initSender(const char* hostName,const char* port, struct sockaddr_in** remot
 
     int socketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
     if (socketDescriptor == -1){ 
+        close(socketDescriptor);
         perror("ERROR in INIT Sender Socket creation");
         return -1;
     }
