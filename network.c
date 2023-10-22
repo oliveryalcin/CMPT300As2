@@ -29,12 +29,12 @@ int initReceiver(char* port, struct sockaddr_in** localAddress){
     }
     sin = localAddressInfo->ai_addr;
     int socketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
-    if (socketDescriptor < 0){
+    if (socketDescriptor == -1){
         perror("ERROR in INIT RECEIVER Socket creation");
         return -1;
     }
 
-    if (bind(socketDescriptor, (struct sockaddr*) sin, sizeof(*sin))){
+    if (bind(socketDescriptor, (struct sockaddr*) sin, sizeof(*sin)) == -1){
         close(socketDescriptor);
         perror("ERROR in INIT RECEIVER Socket creation");
         return -1;
@@ -53,6 +53,7 @@ int receiveMessage(int socketDescriptor, char* messageRx, struct sockaddr_in* si
 
     if(bytesRx < 0){
         perror("Error in message received");
+        return -1;
     }
 
     // Process string, make it null terminated so its easier to work with/process
@@ -77,14 +78,14 @@ int initSender(const char* hostName,const char* port, struct sockaddr_in** remot
     hints.ai_family = AF_INET;
     struct sockaddr_in* sin;
 
-    if(getaddrinfo(hostName, port, &hints,&localAddressInfo)){ //initializes localAddressINFO and sets receiver to localhost
+    if(getaddrinfo(hostName, port, &hints, &localAddressInfo)){ //initializes localAddressINFO and sets receiver to localhost
         perror("Unable to obtain local address info");
         return -1;
     }
     sin = localAddressInfo->ai_addr;
 
     int socketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
-    if (socketDescriptor < 0){
+    if (socketDescriptor == -1){ 
         perror("ERROR in INIT Sender Socket creation");
         return -1;
     }
@@ -94,10 +95,9 @@ int initSender(const char* hostName,const char* port, struct sockaddr_in** remot
 // Critical section
 int sendMessage(int socketDescriptor, char* messageRx, struct sockaddr_in* remoteAddress){
 
-    if(sendto(socketDescriptor, messageRx, MSG_MAX_LEN, 0, (struct sockaddr*)remoteAddress, sizeof(remoteAddress))){
+    if(sendto(socketDescriptor, messageRx, MSG_MAX_LEN, 0, (struct sockaddr*)remoteAddress, sizeof(*remoteAddress)) != -1){
         return 0; //success 
     }
     
-
     return -1;
 }

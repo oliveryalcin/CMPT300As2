@@ -52,15 +52,49 @@ int main(int argCount, char** args){
 
     int localSocket = initReceiver(args[1], &local);
     int remoteSocket = initSender(args[2], args[3], &remote);
-    while (1){
+
+    char messageToSend[MSG_MAX_LEN];
+    char receivedMessage[MSG_MAX_LEN];
 
 
 
-        
+    // Code used for initial testing of the network 
+
+    /*
+    while (1) {
+
+        // Get user input
+        fgets(messageToSend, MSG_MAX_LEN, stdin);
+        // Remove newline character from the input
+        size_t len = strlen(messageToSend);
+        if (len > 0 && messageToSend[len - 1] == '\n'){
+            messageToSend[len - 1] = '\0';
+        }
+        // Send the message
+        if (sendMessage(remoteSocket, messageToSend, remote) == -1){
+
+            fprintf(stderr, "Error sending message\n");
+            break;
+        }
+
+        printf("Message sent: %s\n", messageToSend);
+        // Receive a message
+        int bytesReceived = receiveMessage(localSocket, receivedMessage, local);
+        if (bytesReceived == -1){
+            fprintf(stderr, "Error receiving message\n");
+            break;
+        }
+
+        // Print the received message
+        printf("Received message: %s\n", receivedMessage);
+
     }
+    */
     close(localSocket);
     close(remoteSocket);
-    // TODO!!!
-    // setup the threads, sockets, etc.
+
+
+
+    return 0;
 
 }
