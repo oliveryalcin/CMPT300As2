@@ -6,6 +6,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include "network.h"
+
 #define MSG_MAX_LEN 1024
 
 int initReceiver(char* port, struct sockaddr_in** localAddress){

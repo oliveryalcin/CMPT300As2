@@ -17,8 +17,8 @@
 
 static pthread_t tKeyboard;    // Keyboard thread (monitors input from keyboard)
 static List* kList;
-static pthread_mutex_t* sharedlistMutex;
-static char* dynamicMessage;
+//static pthread_mutex_t* sharedlistMutex;
+//static char* dynamicMessage;
 
 /* read_stdin : reads input from stdin (keyboard/terminal)*/
 void* read_stdin(void* unused){
@@ -59,7 +59,7 @@ void* read_stdin(void* unused){
 int Keyboard_init(List* klist, pthread_mutex_t* keyTXlistMutex){
     kList = klist;
 
-    dynamicMessage = malloc(DYNAMIC_LEN);
+    //dynamicMessage = malloc(DYNAMIC_LEN);
     if ( pthread_create(&tKeyboard, NULL, read_stdin, NULL) != 0){
         perror("Error creating keyboard thread\n");
         return -1;
@@ -77,7 +77,7 @@ void Keyboard_shutdown(){
     // cleanup memory
     //pthread_mutex_lock(&myMutex);
     {
-        free(dynamicMessage);
+        //free(dynamicMessage);
     }
     //pthread_mutex_unlock(&myMytex);
     

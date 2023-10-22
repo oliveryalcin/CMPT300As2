@@ -12,7 +12,7 @@
 
 #include "list.h"
 #include "keyboard.h"
-
+#include "network.h"
 
 
 /* print_terminal : prints characters to screen (terminal) */
@@ -69,6 +69,10 @@ int main(int argCount, char** args){
     pthread_mutex_t keyTXlistMutex = PTHREAD_MUTEX_INITIALIZER;
     // mutex to protect concurrent access to screenRXlist
     //pthread_mutex_t screenRXlistMutex = PTHREAD_MUTEX_INITIALIZER;
+
+    // Shared Condition Variables:
+    //pthread_cond_t keyTXlistCondVar = PTHREAD_COND_INITIALIZER;
+    //pthread_cond_t screenRXlistCondVar = PTHREAD_COND_INITIALIZER;
 
     // Startup the four modules
     if ( Keyboard_init(keyTXlist, &keyTXlistMutex) < 0 ) { return -1; }
