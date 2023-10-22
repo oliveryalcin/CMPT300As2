@@ -61,12 +61,12 @@ int main(int argCount, char** args){
     // setup the threads, sockets, etc.
 
     // Create two lists:
-    List* keyTXlist = List_create();    //
+    //List* keyTXlist = List_create();    //
     //List* screenRXlist = List_create();
 
     // Create shared mutexes:
     // mutex to protect concurrent access to keyTXlist
-    pthread_mutex_t keyTXlistMutex = PTHREAD_MUTEX_INITIALIZER;
+    //pthread_mutex_t keyTXlistMutex = PTHREAD_MUTEX_INITIALIZER;
     // mutex to protect concurrent access to screenRXlist
     //pthread_mutex_t screenRXlistMutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -75,12 +75,12 @@ int main(int argCount, char** args){
     //pthread_cond_t screenRXlistCondVar = PTHREAD_COND_INITIALIZER;
 
     // Startup the four modules
-    if ( Keyboard_init(keyTXlist, &keyTXlistMutex) < 0 ) { return -1; }
+    //if ( Keyboard_init(keyTXlist, &keyTXlistMutex) < 0 ) { return -1; }
     // TODO...
 
 
     // Shutdown my modules
-    Keyboard_shutdown();
+    //Keyboard_shutdown();
     // TODO...
 
     printf("s-talk DONE");
@@ -96,7 +96,7 @@ int main(int argCount, char** args){
     int remoteSocket = initSender(args[2], args[3], &remote);
 
     // Code used for initial testing of the network 
-    /*
+    const int MSG_MAX_LEN = 1024;
     char messageToSend[MSG_MAX_LEN];
     char receivedMessage[MSG_MAX_LEN];
     while (1) {
@@ -127,7 +127,7 @@ int main(int argCount, char** args){
         printf("Received message: %s\n", receivedMessage);
 
     }
-    */
+    
     close(localSocket);
     close(remoteSocket);
 

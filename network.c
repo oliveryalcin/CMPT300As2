@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-
 #include "network.h"
 
 #define MSG_MAX_LEN 1024
@@ -29,7 +28,7 @@ int initReceiver(char* port, struct sockaddr_in** localAddress){
         perror("Unable to obtain local address info");
         return -1;
     }
-    sin = localAddressInfo->ai_addr;
+    sin = (struct sockaddr_in*)localAddressInfo->ai_addr;
     int socketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
     if (socketDescriptor == -1){
         close(socketDescriptor);
@@ -85,7 +84,7 @@ int initSender(const char* hostName,const char* port, struct sockaddr_in** remot
         perror("Unable to obtain local address info");
         return -1;
     }
-    sin = localAddressInfo->ai_addr;
+    sin = (struct sockaddr_in*)localAddressInfo->ai_addr;
 
     int socketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
     if (socketDescriptor == -1){ 
