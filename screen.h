@@ -3,8 +3,8 @@
 #include <pthread.h>
 #include "list.h"
 
-int Screen_init(List* klist, pthread_mutex_t* keyTXlistMutex);
+int Screen_init(List* slist, pthread_mutex_t* screenRXlistMutex);
 void Screen_shutdown();
-void* write_stdout(void* unused);
+void write_stdout();
 
 #endif
