@@ -14,7 +14,7 @@ static pthread_t tScreen;    // Screen thread (consumes input from network)
 static List* rxList;
 
 //unsure if loop is necessary here? 
-void write_stdout(){
+void write_stdout(void *unused){
     char* rxMessage = rxList->pCurrentNode->pItem;
     ssize_t bytes_read = write(STDOUT_FILENO, rxMessage, strlen(rxMessage));
     if (bytes_read == -1) {
