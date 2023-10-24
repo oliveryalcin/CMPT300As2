@@ -21,6 +21,6 @@ void initSender();
 
 void* sendMessage(void* unused);
 
-void closeNetwork();
+void Network_shutdown();
 
 #endif
