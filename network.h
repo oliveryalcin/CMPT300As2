@@ -8,13 +8,19 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include "list.h"
 
-int initReceiver(char* port, struct sockaddr_in** localAddress);
+// Constructor, grabs lists created in main() grabs console arguments to initialize sockets.
+void initNetwork(char* sLocalPort,char* sRemotePort, char* sHostName, List* keyTXlist, List* screenRXlist, pthread_mutex_t* keyTXlistMutex, pthread_mutex_t* screenRXlistMutex);
 
-int receiveMessage(int socketDescriptor, char* messageRx, struct sockaddr_in* sinLocal);
+void initReceiver();
 
-int initSender(const char* hostName,const char* port, struct sockaddr_in** remoteAddress); //get ip address for CLI when running code ./main IP_ADDR PORT NUMBER
+void* receiveMessage(void* unused);
 
-int sendMessage(int socketDescriptor, char* messageRx, struct sockaddr_in* remoteAddress);
+void initSender();
+
+void* sendMessage(void* unused);
+
+void closeNetwork();
 
 #endif

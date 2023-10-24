@@ -1,3 +1,4 @@
+// Producer
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,7 +9,7 @@
 #include <unistd.h>
 
 #include "keyboard.h"
-//#include "list.h"
+#include "list.h"
 
 #define DYNAMIC_LEN 128
 #define MSG_MAX_LEN 1024
@@ -17,7 +18,7 @@
 
 static pthread_t tKeyboard;    // Keyboard thread (monitors input from keyboard)
 static List* kList;
-//static pthread_mutex_t* sharedlistMutex;
+static pthread_mutex_t* sharedlistMutex;
 //static char* dynamicMessage;
 
 /* read_stdin : reads input from stdin (keyboard/terminal)*/
@@ -41,15 +42,16 @@ void* read_stdin(void* unused){
             // Remove the newline character
             bytes_read--;
             buffer[bytes_read] = '\0';
-            break;
+            
             // TODO: SEND to list
-            //pthread_mutex_lock(&sharedlistMutex);
+            pthread_mutex_lock(sharedlistMutex);
             {
                 // critical section/ access shared list
                 // create (dynamic) item "msg"
-                //List_prepend(kList, msg);
+                List_prepend(kList, buffer);
             }
-            //pthread_mutex_unlock(&sharedlistMutex);
+            pthread_mutex_unlock(sharedlistMutex);
+            break;
         }
     }
     return NULL;
@@ -58,9 +60,9 @@ void* read_stdin(void* unused){
 /* Keyboard_init: initialize thread */
 int Keyboard_init(List* klist, pthread_mutex_t* keyTXlistMutex){
     kList = klist;
-
+    sharedlistMutex = keyTXlistMutex;
     //dynamicMessage = malloc(DYNAMIC_LEN);
-    if ( pthread_create(&tKeyboard, NULL, read_stdin, NULL) != 0){
+    if (pthread_create(&tKeyboard, NULL, read_stdin, NULL) != 0){
         perror("Error creating keyboard thread\n");
         return -1;
     }

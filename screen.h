@@ -1,5 +1,5 @@
-#ifndef _KEYBOARD_H_
-#define _KEYBOARD_H_
+#ifndef _SCREEN_H_
+#define _SCREEN_H_
 #include <pthread.h>
 #include "list.h"
 

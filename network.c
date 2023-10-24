@@ -1,3 +1,6 @@
+// receiveMessage is a Producer
+// sendMessage() is a Consumer
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <netdb.h>
@@ -6,101 +9,155 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include "network.h"
+#include "list.h"
+#include <pthread.h>
 
 #define MSG_MAX_LEN 1024
 
-int initReceiver(char* port, struct sockaddr_in** localAddress){
+static struct sockaddr_in* sinLocal;
+static int localSocketDescriptor;
 
-    // getaddrinfo() will sort out all of this, no need to reset memory. This will make received address info garbage
-    //struct sockaddr_in sin; // receiver server address
-    //memset(&sin, 0, sizeof(sin)); 
-    //sin.sin_family = AF_INET; // Connection to network long
-    //sin.sin_port = htons(PORT); // Host to network short 
-    //sin.sin_addr.s_addr = htonl(INADDR_ANY); // Host to network long 
+static struct sockaddr_in* sinRemote;
+static int remoteSocketDescriptor;
+
+static char* localPort;
+static char* remotePort;
+static char* hostName;
+
+static List* txList;
+static List* rxList;
+
+static pthread_t tReceiverPID;
+static pthread_t tSenderPID;
+
+static pthread_mutex_t* senderListMutex;
+static pthread_mutex_t* receiverListMutex;
+
+
+void initNetwork(char* sLocalPort,char* sRemotePort, char* sHostName, List* keyTXlist, List* screenRXlist,pthread_mutex_t* keyTXlistMutex, pthread_mutex_t* screenRXlistMutex){
+    localPort = sLocalPort;
+    remotePort = sRemotePort;
+    hostName = sHostName;
+
+    txList = keyTXlist; // List 1: -> Producer: Keyboard/Input, Consumer: Sender
+    rxList = screenRXlist; // List 2 -> Producer: Receiver, Consumer Output
+
+    initSender();
+    initReceiver();
+
+    pthread_create(
+        &tReceiverPID, // PID
+        NULL, // Attributes
+        receiveMessage, // Function
+        NULL
+    );
+    pthread_create(
+        &tSenderPID, // PID
+        NULL, // Attributes
+        sendMessage, // Function
+        NULL
+    );
+    senderListMutex = keyTXlistMutex;
+    receiverListMutex = screenRXlistMutex;
+}
+
+void initReceiver(){
+
     struct addrinfo* localAddressInfo;
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
 
     hints.ai_flags = AI_PASSIVE;
     hints.ai_family = AF_INET;
-    struct sockaddr_in* sin;
-    if(getaddrinfo(NULL, port, &hints,&localAddressInfo)){ //initializes localAddressINFO and sets receiver to localhost
+
+    if(getaddrinfo(NULL, localPort, &hints,&localAddressInfo)){ //initializes localAddressINFO and sets receiver to localhost
         perror("Unable to obtain local address info");
-        return -1;
     }
-    sin = (struct sockaddr_in*)localAddressInfo->ai_addr;
-    int socketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
-    if (socketDescriptor == -1){
-        close(socketDescriptor);
+    sinLocal = (struct sockaddr_in*)localAddressInfo->ai_addr;
+    localSocketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
+    if (localSocketDescriptor == -1){
+        close(localSocketDescriptor);
         perror("ERROR in INIT RECEIVER Socket creation");
-        return -1;
     }
 
-    if (bind(socketDescriptor, (struct sockaddr*) sin, sizeof(*sin)) == -1){
-        close(socketDescriptor);
+    if (bind(localSocketDescriptor, (struct sockaddr*) sinLocal, sizeof(*sinLocal)) == -1){
+        close(localSocketDescriptor);
         perror("ERROR in INIT RECEIVER Socket creation");
-        return -1;
     }
-    printf("Oliver's Receiver Network Listening on UDP port %s:\n", port);
-    (*localAddress) = sin;
-    return socketDescriptor;
+    printf("Oliver's Receiver Network Listening on UDP port %s:\n", localPort);
+    
 }
 
-// Critical section most likely using Pthreads here. 
-int receiveMessage(int socketDescriptor, char* messageRx, struct sockaddr_in* sinLocal){
+// Producer 
+void* receiveMessage(void* unused){
 
-    //struct sockaddr_in sinRemote; // contains sender address
-    unsigned int sin_len = sizeof(sinLocal);
-    int bytesRx = recvfrom(socketDescriptor, messageRx, MSG_MAX_LEN, 0, (struct sockaddr *) &sinLocal, &sin_len);
+    while(1){
+        char messageRx[MSG_MAX_LEN];
+        //struct sockaddr_in sinRemote; // contains sender address
+        unsigned int sin_len = sizeof(sinLocal);
+        int bytesRx = recvfrom(localSocketDescriptor, messageRx, MSG_MAX_LEN, 0, (struct sockaddr *) &sinLocal, &sin_len);
 
-    if(bytesRx < 0){
-        perror("Error in message received");
-        return -1;
+        if(bytesRx < 0){
+            perror("Error in message received");
+        }
+        // Process string, make it null terminated so its easier to work with/process
+        // Also we should be able to process strings of any size, consequently having hardcoded
+        // maxlength will not work for us. 
+        int terminateIdx = (bytesRx < MSG_MAX_LEN) ? bytesRx : MSG_MAX_LEN - 1;
+        messageRx[terminateIdx] = 0;
+
+        // Critical Section add messageRx to list
+        pthread_mutex_lock(receiverListMutex);
+        List_prepend(rxList, messageRx);
+        pthread_mutex_unlock(receiverListMutex);
+
     }
-
-    // Process string, make it null terminated so its easier to work with/process
-    // Also we should be able to process strings of any size, consequently having hardcoded
-    // maxlength will not work for us. 
-    int terminateIdx = (bytesRx < MSG_MAX_LEN) ? bytesRx : MSG_MAX_LEN - 1;
-    messageRx[terminateIdx] = 0;
-
-    return bytesRx;
+    
 }
-// Refactor so that address is taken from CLI
-int initSender(const char* hostName,const char* port, struct sockaddr_in** remoteAddress){ //get ip address for CLI when running code ./main IP_ADDR PORT NUMBER
+void initSender(){ 
 
-    //struct sockaddr_in sin; // receiver server address
-    //memset(&sin, 0, sizeof(sin)); 
-    //sin.sin_family = AF_INET; // Connection to network long
-    //sin.sin_port = htons(PORT); // Host to network long
-    //sin.sin_addr.s_addr = htonl(INADDR_ANY); // Host to network short 
     struct addrinfo* localAddressInfo;
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
-    struct sockaddr_in* sin;
 
-    if(getaddrinfo(hostName, port, &hints, &localAddressInfo)){ //initializes localAddressINFO and sets receiver to localhost
+    if(getaddrinfo(hostName, remotePort, &hints, &localAddressInfo)){ //initializes localAddressINFO and sets receiver to localhost
         perror("Unable to obtain local address info");
-        return -1;
     }
-    sin = (struct sockaddr_in*)localAddressInfo->ai_addr;
+    sinRemote = (struct sockaddr_in*)localAddressInfo->ai_addr;
 
-    int socketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
-    if (socketDescriptor == -1){ 
-        close(socketDescriptor);
+    remoteSocketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
+    if (remoteSocketDescriptor == -1){ 
+        close(remoteSocketDescriptor);
         perror("ERROR in INIT Sender Socket creation");
-        return -1;
-    }
-    (*remoteAddress) = sin;
-    return socketDescriptor;
-}
-// Critical section
-int sendMessage(int socketDescriptor, char* messageRx, struct sockaddr_in* remoteAddress){
-
-    if(sendto(socketDescriptor, messageRx, MSG_MAX_LEN, 0, (struct sockaddr*)remoteAddress, sizeof(*remoteAddress)) != -1){
-        return 0; //success 
     }
     
-    return -1;
+}
+
+// Consumer
+void* sendMessage(void* unused){
+
+    while(1){
+     
+        //Critical section
+        pthread_mutex_lock(senderListMutex);
+        char* messageTx = (char*)List_remove(txList);
+        pthread_mutex_unlock(senderListMutex);
+
+
+        if(sendto(remoteSocketDescriptor, messageTx, MSG_MAX_LEN, 0, (struct sockaddr*)sinRemote, sizeof(*sinRemote)) == -1){
+            perror("Unable to send the message");
+        }
+    }
+    
+}
+
+void closeNetwork(){
+
+    close(localSocketDescriptor);
+    close(remoteSocketDescriptor);
+    pthread_cancel(tReceiverPID);
+    pthread_cancel(tSenderPID);
+    pthread_join(tReceiverPID, NULL);
+    pthread_join(tSenderPID, NULL);
 }

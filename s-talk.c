@@ -13,7 +13,7 @@
 #include "list.h"
 #include "keyboard.h"
 #include "network.h"
-
+#include "screen.h"
 
 /* print_terminal : prints characters to screen (terminal) */
 void print_terminal(){
@@ -61,41 +61,52 @@ int main(int argCount, char** args){
     // setup the threads, sockets, etc.
 
     // Create two lists:
-    //List* keyTXlist = List_create();    //
-    //List* screenRXlist = List_create();
+    List* keyTXlist = List_create();    
+    List* screenRXlist = List_create();
 
     // Create shared mutexes:
     // mutex to protect concurrent access to keyTXlist
-    //pthread_mutex_t keyTXlistMutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t keyTXlistMutex = PTHREAD_MUTEX_INITIALIZER;
     // mutex to protect concurrent access to screenRXlist
-    //pthread_mutex_t screenRXlistMutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t screenRXlistMutex = PTHREAD_MUTEX_INITIALIZER;
 
     // Shared Condition Variables:
     //pthread_cond_t keyTXlistCondVar = PTHREAD_COND_INITIALIZER;
     //pthread_cond_t screenRXlistCondVar = PTHREAD_COND_INITIALIZER;
 
     // Startup the four modules
-    //if ( Keyboard_init(keyTXlist, &keyTXlistMutex) < 0 ) { return -1; }
+    if (Keyboard_init(keyTXlist, &keyTXlistMutex) < 0 ) { 
+        return -1; 
+    }
+    if (Screen_init(keyTXlist, &keyTXlistMutex) < 0 ) { 
+        return -1; 
+    }
+    initNetwork(args[1],args[3],args[2], keyTXlist, screenRXlist, &keyTXlistMutex, &screenRXlistMutex);
+
     // TODO...
 
 
     // Shutdown my modules
-    //Keyboard_shutdown();
+    Keyboard_shutdown();
+    Screen_shutdown();
+    closeNetwork();
     // TODO...
 
-    printf("s-talk DONE");
+    //printf("s-talk DONE");
 
     //pthread_t tScreen;  // Screen thread (prints characters to terminal screen)
     //pthread_t tSend;    // Send thread (sends data to remote UNIX process over network using UDP)
     //pthread_t tRecv;    // Receive thread (awaits a UDP datagram)
 
-    struct sockaddr_in* local;
-    struct sockaddr_in* remote;
 
-    int localSocket = initReceiver(args[1], &local);
-    int remoteSocket = initSender(args[2], args[3], &remote);
+    // Local and Remote address information used for sending information.
+    // Essentially used to pass as arugments for receiveMessage(..) and sendMessage(..)  
+
+
+
 
     // Code used for initial testing of the network 
+    /*
     const int MSG_MAX_LEN = 1024;
     char messageToSend[MSG_MAX_LEN];
     char receivedMessage[MSG_MAX_LEN];
@@ -109,7 +120,7 @@ int main(int argCount, char** args){
             messageToSend[len - 1] = '\0';
         }
         // Send the message
-        if (sendMessage(remoteSocket, messageToSend, remote) == -1){
+        if (sendMessage(messageToSend) == -1){
 
             fprintf(stderr, "Error sending message\n");
             break;
@@ -117,7 +128,7 @@ int main(int argCount, char** args){
 
         printf("Message sent: %s\n", messageToSend);
         // Receive a message
-        int bytesReceived = receiveMessage(localSocket, receivedMessage, local);
+        int bytesReceived = receiveMessage(receivedMessage);
         if (bytesReceived == -1){
             fprintf(stderr, "Error receiving message\n");
             break;
@@ -127,12 +138,8 @@ int main(int argCount, char** args){
         printf("Received message: %s\n", receivedMessage);
 
     }
-    
-    close(localSocket);
-    close(remoteSocket);
-
-
+    */
+    closeNetwork();
 
     return 0;
-
 }
