@@ -13,7 +13,7 @@
 static pthread_t tScreen;    // Screen thread (consumes input from network)
 static List* rxList;
 static pthread_mutex_t* sharedlistMutex;
-
+static char* hostName;
 //unsure if loop is necessary here since there is no Keyboard I/O waits occuring? 
 void* write_stdout(void *unused){
 
@@ -27,10 +27,13 @@ void* write_stdout(void *unused){
         pthread_mutex_unlock(sharedlistMutex);
 
         if(rxMessage != NULL){
+            write(1, hostName, strlen(hostName));
+            write(1, ": ", 2);
             ssize_t bytes_read = write(1, rxMessage, strlen(rxMessage));
             if (bytes_read == -1) {
-                perror("Error reading from LIST ADT, either write failed and/or List is empty");
+                perror("Write Failed");
             } 
+            write(1, "\n", 1);
         }
     }
 
@@ -38,10 +41,10 @@ void* write_stdout(void *unused){
 }
     
 
-int Screen_init(List *sList, pthread_mutex_t *screenRXlistMutex){ // Thread initializer in order to output messages
+int Screen_init(List *sList, pthread_mutex_t *screenRXlistMutex, char* hostNameArg){ // Thread initializer in order to output messages
     rxList = sList;
     sharedlistMutex = screenRXlistMutex;
-
+    hostName = hostNameArg;
     if (pthread_create(&tScreen, NULL, write_stdout, NULL) != 0){
         perror("Error creating screen/output thread\n");
         return -1;

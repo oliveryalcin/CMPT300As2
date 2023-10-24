@@ -105,7 +105,6 @@ void* receiveMessage(void* unused){
         // maxlength will not work for us. 
         int terminateIdx = (bytesRx < MSG_MAX_LEN) ? bytesRx : MSG_MAX_LEN - 1;
         messageRx[terminateIdx] = '\0';
-        printf("%s\n", messageRx);
         
         // Critical Section add messageRx to list
         pthread_mutex_lock(receiverListMutex);
@@ -143,12 +142,14 @@ void* sendMessage(void* unused){
         //Critical section
         pthread_mutex_lock(senderListMutex);
         char* messageTx = (char*)List_remove(txList);
+
         pthread_mutex_unlock(senderListMutex);
         if(messageTx != NULL) {
     
             if(sendto(remoteSocketDescriptor, messageTx, MSG_MAX_LEN, 0, (struct sockaddr*)sinRemote, sizeof(*sinRemote)) == -1){
                 perror("Unable to send the message");
             }
+            free(messageTx);
         }
     }
     
@@ -156,10 +157,11 @@ void* sendMessage(void* unused){
 
 void Network_shutdown(){
     
-    //close(localSocketDescriptor);
-    //close(remoteSocketDescriptor);
+
     //pthread_cancel(tReceiverPID);
     //pthread_cancel(tSenderPID);
     pthread_join(tReceiverPID, NULL);
     pthread_join(tSenderPID, NULL);
+    close(localSocketDescriptor);
+    close(remoteSocketDescriptor);
 }

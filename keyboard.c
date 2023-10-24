@@ -25,19 +25,33 @@ static pthread_mutex_t* sharedlistMutex;
 void* read_stdin(void* unused){
     // TODO:
     char buffer[1024];      // Buffer to store user input
-
+    ssize_t bytes_read;     // number of bytes read
+    size_t nbytes;          // number of bytes to attempt to read
+    nbytes = sizeof(buffer);
 
     while (1) {
-        fgets(buffer, sizeof(buffer), stdin);
+        memset(buffer, 0, nbytes);
+        bytes_read = read(STDIN_FILENO, buffer, nbytes);
 
-        pthread_mutex_lock(sharedlistMutex);
-        {
-                // critical section/ access shared list
-                // create (dynamic) item "msg"
-            List_prepend(kList, buffer);
+        if (bytes_read == -1) {
+            perror("Error reading from terminal");
+            //return 1;
         }
+
+        // Check if the user pressed Enter (newline character)
+        if (bytes_read > 0 && buffer[bytes_read - 1] == '\n') {
+            // Remove the newline character
+            bytes_read--;
+            buffer[bytes_read] = '\0';
+
+            pthread_mutex_lock(sharedlistMutex);
+            {
+            char* msg = malloc(nbytes);
+            memcpy(msg, buffer, nbytes);
+            List_prepend(kList, msg);
+            }
             pthread_mutex_unlock(sharedlistMutex);
-         
+        }
     }
     return NULL;
 }

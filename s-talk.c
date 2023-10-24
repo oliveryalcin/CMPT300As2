@@ -78,7 +78,7 @@ int main(int argCount, char** args){
     if (Keyboard_init(keyTXlist, &keyTXlistMutex) < 0) { 
         return -1; 
     }
-    if (Screen_init(keyTXlist, &screenRXlistMutex) < 0) { 
+    if (Screen_init(screenRXlist, &screenRXlistMutex, args[2]) < 0) { 
         return -1; 
     }
     initNetwork(args[1],args[3],args[2], keyTXlist, screenRXlist, &keyTXlistMutex, &screenRXlistMutex);
@@ -88,8 +88,8 @@ int main(int argCount, char** args){
 
     // Shutdown my modules
     Keyboard_shutdown();
-    Screen_shutdown();
     Network_shutdown();
+    Screen_shutdown();
     // TODO...
 
     //printf("s-talk DONE");
