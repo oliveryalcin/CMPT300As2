@@ -75,10 +75,10 @@ int main(int argCount, char** args){
     //pthread_cond_t screenRXlistCondVar = PTHREAD_COND_INITIALIZER;
 
     // Startup the four modules
-    if (Keyboard_init(keyTXlist, &keyTXlistMutex) < 0 ) { 
+    if (Keyboard_init(keyTXlist, &keyTXlistMutex) < 0) { 
         return -1; 
     }
-    if (Screen_init(keyTXlist, &keyTXlistMutex) < 0 ) { 
+    if (Screen_init(keyTXlist, &screenRXlistMutex) < 0) { 
         return -1; 
     }
     initNetwork(args[1],args[3],args[2], keyTXlist, screenRXlist, &keyTXlistMutex, &screenRXlistMutex);
@@ -89,7 +89,7 @@ int main(int argCount, char** args){
     // Shutdown my modules
     Keyboard_shutdown();
     Screen_shutdown();
-    closeNetwork();
+    Network_shutdown();
     // TODO...
 
     //printf("s-talk DONE");
@@ -139,7 +139,6 @@ int main(int argCount, char** args){
 
     }
     */
-    closeNetwork();
 
     return 0;
 }
