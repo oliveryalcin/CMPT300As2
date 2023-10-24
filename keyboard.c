@@ -38,7 +38,7 @@ void* read_stdin(void* unused){
         }
 
         // Check if the user pressed Enter (newline character)
-        if (bytes_read > 0 && buffer[bytes_read - 1] == '\n') {
+        if (bytes_read > 0 && buffer[bytes_read - 1] == 10) {
             // Remove the newline character
             bytes_read--;
             buffer[bytes_read] = '\0';

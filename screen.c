@@ -26,10 +26,12 @@ void* write_stdout(void *unused){
         }
         pthread_mutex_unlock(sharedlistMutex);
 
-        ssize_t bytes_read = write(STDOUT_FILENO, rxMessage, strlen(rxMessage));
-        if (bytes_read == -1) {
-            perror("Error reading from LIST ADT, either write failed and/or List is empty");
-        } 
+        if(rxMessage != NULL){
+            ssize_t bytes_read = write(STDOUT_FILENO, rxMessage, strlen(rxMessage));
+            if (bytes_read == -1) {
+                perror("Error reading from LIST ADT, either write failed and/or List is empty");
+            } 
+        }
     }
 
     return NULL;

@@ -144,9 +144,10 @@ void* sendMessage(void* unused){
         char* messageTx = (char*)List_remove(txList);
         pthread_mutex_unlock(senderListMutex);
 
-
+        if(messageTx != NULL) {
         if(sendto(remoteSocketDescriptor, messageTx, MSG_MAX_LEN, 0, (struct sockaddr*)sinRemote, sizeof(*sinRemote)) == -1){
             perror("Unable to send the message");
+        }
         }
     }
     
