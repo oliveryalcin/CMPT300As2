@@ -92,8 +92,8 @@ void initReceiver(){
 void* receiveMessage(void* unused){
 
     while(1){
+        //printf("receiveMessage(...)");
         char messageRx[MSG_MAX_LEN];
-        //struct sockaddr_in sinRemote; // contains sender address
         unsigned int sin_len = sizeof(sinLocal);
         int bytesRx = recvfrom(localSocketDescriptor, messageRx, MSG_MAX_LEN, 0, (struct sockaddr *) &sinLocal, &sin_len);
 
@@ -104,8 +104,9 @@ void* receiveMessage(void* unused){
         // Also we should be able to process strings of any size, consequently having hardcoded
         // maxlength will not work for us. 
         int terminateIdx = (bytesRx < MSG_MAX_LEN) ? bytesRx : MSG_MAX_LEN - 1;
-        messageRx[terminateIdx] = 0;
-
+        messageRx[terminateIdx] = '\0';
+        printf("%s\n", messageRx);
+        
         // Critical Section add messageRx to list
         pthread_mutex_lock(receiverListMutex);
         List_prepend(rxList, messageRx);
@@ -138,27 +139,27 @@ void initSender(){
 void* sendMessage(void* unused){
 
     while(1){
-     
+        //printf("sendMessage(...)");
         //Critical section
         pthread_mutex_lock(senderListMutex);
         char* messageTx = (char*)List_remove(txList);
         pthread_mutex_unlock(senderListMutex);
-
         if(messageTx != NULL) {
-        if(sendto(remoteSocketDescriptor, messageTx, MSG_MAX_LEN, 0, (struct sockaddr*)sinRemote, sizeof(*sinRemote)) == -1){
-            perror("Unable to send the message");
-        }
+    
+            if(sendto(remoteSocketDescriptor, messageTx, MSG_MAX_LEN, 0, (struct sockaddr*)sinRemote, sizeof(*sinRemote)) == -1){
+                perror("Unable to send the message");
+            }
         }
     }
     
 }
 
-void closeNetwork(){
-
-    close(localSocketDescriptor);
-    close(remoteSocketDescriptor);
-    pthread_cancel(tReceiverPID);
-    pthread_cancel(tSenderPID);
+void Network_shutdown(){
+    
+    //close(localSocketDescriptor);
+    //close(remoteSocketDescriptor);
+    //pthread_cancel(tReceiverPID);
+    //pthread_cancel(tSenderPID);
     pthread_join(tReceiverPID, NULL);
     pthread_join(tSenderPID, NULL);
 }

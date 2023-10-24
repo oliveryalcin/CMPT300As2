@@ -25,34 +25,19 @@ static pthread_mutex_t* sharedlistMutex;
 void* read_stdin(void* unused){
     // TODO:
     char buffer[1024];      // Buffer to store user input
-    ssize_t bytes_read;     // number of bytes read
-    size_t nbytes;          // number of bytes to attempt to read
-    nbytes = sizeof(buffer);
+
 
     while (1) {
-        bytes_read = read(STDIN_FILENO, buffer, nbytes);
+        fgets(buffer, sizeof(buffer), stdin);
 
-        if (bytes_read == -1) {
-            perror("Error reading from terminal");
-            //return 1;
-        }
-
-        // Check if the user pressed Enter (newline character)
-        if (bytes_read > 0 && buffer[bytes_read - 1] == 10) {
-            // Remove the newline character
-            bytes_read--;
-            buffer[bytes_read] = '\0';
-            
-            // TODO: SEND to list
-            pthread_mutex_lock(sharedlistMutex);
-            {
+        pthread_mutex_lock(sharedlistMutex);
+        {
                 // critical section/ access shared list
                 // create (dynamic) item "msg"
-                List_prepend(kList, buffer);
-            }
-            pthread_mutex_unlock(sharedlistMutex);
-            break;
+            List_prepend(kList, buffer);
         }
+            pthread_mutex_unlock(sharedlistMutex);
+         
     }
     return NULL;
 }
@@ -73,7 +58,7 @@ int Keyboard_init(List* klist, pthread_mutex_t* keyTXlistMutex){
 
 /* Keyboard_shutdown: shutdown thread */
 void Keyboard_shutdown(){
-    pthread_cancel(tKeyboard);      // cancel thread
+    //pthread_cancel(tKeyboard);      // cancel thread
     pthread_join(tKeyboard, NULL);  // waits for thread to finish
 
     // cleanup memory

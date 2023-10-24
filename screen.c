@@ -27,7 +27,7 @@ void* write_stdout(void *unused){
         pthread_mutex_unlock(sharedlistMutex);
 
         if(rxMessage != NULL){
-            ssize_t bytes_read = write(STDOUT_FILENO, rxMessage, strlen(rxMessage));
+            ssize_t bytes_read = write(1, rxMessage, strlen(rxMessage));
             if (bytes_read == -1) {
                 perror("Error reading from LIST ADT, either write failed and/or List is empty");
             } 
@@ -51,7 +51,7 @@ int Screen_init(List *sList, pthread_mutex_t *screenRXlistMutex){ // Thread init
 }
 
 void Screen_shutdown(){
-    pthread_cancel(tScreen);      // cancel thread
+    //pthread_cancel(tScreen);      // cancel thread
     pthread_join(tScreen, NULL);  // waits for thread to finish
 
 }
