@@ -19,6 +19,7 @@
 static pthread_t tKeyboard;    // Keyboard thread (monitors input from keyboard)
 static List* kList;
 static pthread_mutex_t* sharedlistMutex;
+static char* msg;
 //static char* dynamicMessage;
 
 /* read_stdin : reads input from stdin (keyboard/terminal)*/
@@ -46,7 +47,7 @@ void* read_stdin(void* unused){
 
             pthread_mutex_lock(sharedlistMutex);
             {
-            char* msg = malloc(nbytes);
+            msg = malloc(nbytes);
             memcpy(msg, buffer, nbytes);
             List_prepend(kList, msg);
             }
@@ -72,16 +73,23 @@ int Keyboard_init(List* klist, pthread_mutex_t* keyTXlistMutex){
 
 /* Keyboard_shutdown: shutdown thread */
 void Keyboard_shutdown(){
-    //pthread_cancel(tKeyboard);      // cancel thread
-    pthread_join(tKeyboard, NULL);  // waits for thread to finish
+    printf("Keyboard Shutdown...\n");
+
+    if(pthread_cancel(tKeyboard) != 0){     // cancel thread
+        printf("Error cancelling keyboard\n");
+    }      
+    printf("    Keyboard thread cancelled\n");
+
+    if (pthread_join(tKeyboard, NULL) != 0){ // waits for thread to finish
+        printf("Error joining keyboard\n");
+    }
+    printf("    Keyboard thread joined\n");
 
     // cleanup memory
-    //pthread_mutex_lock(&myMutex);
-    {
-        //free(dynamicMessage);
-    }
-    //pthread_mutex_unlock(&myMytex);
-    
+    /*if (msg){
+        free(msg);
+        msg = NULL;
+    }*/    
 }
 
 

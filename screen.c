@@ -14,11 +14,10 @@ static pthread_t tScreen;    // Screen thread (consumes input from network)
 static List* rxList;
 static pthread_mutex_t* sharedlistMutex;
 static char* hostName;
+
 //unsure if loop is necessary here since there is no Keyboard I/O waits occuring? 
 void* write_stdout(void *unused){
-
     while(1){
-
         char* rxMessage = NULL;
         pthread_mutex_lock(sharedlistMutex);
         {
@@ -35,6 +34,7 @@ void* write_stdout(void *unused){
             } 
             write(1, "\n", 1);
         }
+        pthread_testcancel();
     }
 
     return NULL;
@@ -54,8 +54,17 @@ int Screen_init(List *sList, pthread_mutex_t *screenRXlistMutex, char* hostNameA
 }
 
 void Screen_shutdown(){
-    //pthread_cancel(tScreen);      // cancel thread
-    pthread_join(tScreen, NULL);  // waits for thread to finish
+    printf("Screen Shutdown...\n");
+
+    if (pthread_cancel(tScreen) != 0) {       // cancel thread
+        printf("Error cancelling screen\n");
+    }
+    printf("    Screen thread cancelled\n");
+
+    if (pthread_join(tScreen, NULL) != 0){  // waits for thread to finish
+        printf("Error joining screen\n");
+    } 
+    printf("    Screen thread joined\n");
 
 }
 

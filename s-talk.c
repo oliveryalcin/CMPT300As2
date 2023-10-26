@@ -15,9 +15,31 @@
 #include "network.h"
 #include "screen.h"
 
-/* print_terminal : prints characters to screen (terminal) */
-void print_terminal(){
+/* Free char* msg Function*/
+static void free_msg(void* pItem)
+{
+    free(pItem);
+    return;
+}
 
+/* Dummy free*/
+static void dummy_free(void* pItem)
+{
+    return;
+}
+
+
+// synchronization for shut down
+static pthread_mutex_t shutdownMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t shutdownCondVar = PTHREAD_COND_INITIALIZER;
+
+void signalShutdown(){
+    pthread_mutex_lock(&shutdownMutex);
+    {
+        pthread_cond_signal(&shutdownCondVar);
+    }
+    pthread_mutex_unlock(&shutdownMutex);
+    return;
 }
 
 
@@ -84,19 +106,26 @@ int main(int argCount, char** args){
     initNetwork(args[1],args[3],args[2], keyTXlist, screenRXlist, &keyTXlistMutex, &screenRXlistMutex);
 
     // TODO...
+    printf("Main Thread waiting here...\n");
 
+    // wait for shutdown
+    pthread_mutex_lock(&shutdownMutex);
+    {
+        pthread_cond_wait(&shutdownCondVar, &shutdownMutex);
+    }
+    pthread_mutex_unlock(&shutdownMutex);
 
+    printf("SHUTTING DOWN! ...\n");
     // Shutdown my modules
     Keyboard_shutdown();
-    Network_shutdown();
     Screen_shutdown();
-    // TODO...
+    Network_shutdown();
 
-    //printf("s-talk DONE");
+    printf("Freeing lists...\n");
+    List_free(keyTXlist, free_msg);
+    List_free(screenRXlist, dummy_free);
 
-    //pthread_t tScreen;  // Screen thread (prints characters to terminal screen)
-    //pthread_t tSend;    // Send thread (sends data to remote UNIX process over network using UDP)
-    //pthread_t tRecv;    // Receive thread (awaits a UDP datagram)
+    printf("s-talk DONE\n");
 
 
     // Local and Remote address information used for sending information.

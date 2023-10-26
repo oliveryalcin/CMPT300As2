@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include "network.h"
 #include "list.h"
+#include "s-talk.h"
 #include <pthread.h>
 
 #define MSG_MAX_LEN 1024
@@ -23,6 +24,9 @@ static int remoteSocketDescriptor;
 static char* localPort;
 static char* remotePort;
 static char* hostName;
+
+static struct addrinfo* localAddressInfoRX;
+static struct addrinfo* localAddressInfoTX;
 
 static List* txList;
 static List* rxList;
@@ -42,6 +46,9 @@ void initNetwork(char* sLocalPort,char* sRemotePort, char* sHostName, List* keyT
     txList = keyTXlist; // List 1: -> Producer: Keyboard/Input, Consumer: Sender
     rxList = screenRXlist; // List 2 -> Producer: Receiver, Consumer Output
 
+    senderListMutex = keyTXlistMutex;
+    receiverListMutex = screenRXlistMutex;
+
     initSender();
     initReceiver();
 
@@ -57,23 +64,20 @@ void initNetwork(char* sLocalPort,char* sRemotePort, char* sHostName, List* keyT
         sendMessage, // Function
         NULL
     );
-    senderListMutex = keyTXlistMutex;
-    receiverListMutex = screenRXlistMutex;
 }
 
-void initReceiver(){
 
-    struct addrinfo* localAddressInfo;
+void initReceiver(){
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
 
     hints.ai_flags = AI_PASSIVE;
     hints.ai_family = AF_INET;
 
-    if(getaddrinfo(NULL, localPort, &hints,&localAddressInfo)){ //initializes localAddressINFO and sets receiver to localhost
+    if(getaddrinfo(NULL, localPort, &hints, &localAddressInfoRX)){ //initializes localAddressINFO and sets receiver to localhost
         perror("Unable to obtain local address info");
     }
-    sinLocal = (struct sockaddr_in*)localAddressInfo->ai_addr;
+    sinLocal = (struct sockaddr_in*)localAddressInfoRX->ai_addr;
     localSocketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
     if (localSocketDescriptor == -1){
         close(localSocketDescriptor);
@@ -88,9 +92,9 @@ void initReceiver(){
     
 }
 
+
 // Producer 
 void* receiveMessage(void* unused){
-
     while(1){
         //printf("receiveMessage(...)");
         char messageRx[MSG_MAX_LEN];
@@ -105,26 +109,33 @@ void* receiveMessage(void* unused){
         // maxlength will not work for us. 
         int terminateIdx = (bytesRx < MSG_MAX_LEN) ? bytesRx : MSG_MAX_LEN - 1;
         messageRx[terminateIdx] = '\0';
+
+        if(messageRx[0] == '!' && messageRx[1] == '\0'){
+            // as soon as we receive ! we quit
+            signalShutdown();
+            break;
+        }
         
         // Critical Section add messageRx to list
         pthread_mutex_lock(receiverListMutex);
         List_prepend(rxList, messageRx);
         pthread_mutex_unlock(receiverListMutex);
-
+        pthread_testcancel();
     }
-    
+    while(1){ pthread_testcancel(); }
+    //return NULL;
 }
-void initSender(){ 
 
-    struct addrinfo* localAddressInfo;
+
+void initSender(){ 
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
 
-    if(getaddrinfo(hostName, remotePort, &hints, &localAddressInfo)){ //initializes localAddressINFO and sets receiver to localhost
+    if(getaddrinfo(hostName, remotePort, &hints, &localAddressInfoTX)){ //initializes localAddressINFO and sets receiver to localhost
         perror("Unable to obtain local address info");
     }
-    sinRemote = (struct sockaddr_in*)localAddressInfo->ai_addr;
+    sinRemote = (struct sockaddr_in*)localAddressInfoTX->ai_addr;
 
     remoteSocketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
     if (remoteSocketDescriptor == -1){ 
@@ -142,26 +153,48 @@ void* sendMessage(void* unused){
         //Critical section
         pthread_mutex_lock(senderListMutex);
         char* messageTx = (char*)List_remove(txList);
-
         pthread_mutex_unlock(senderListMutex);
+        pthread_testcancel();
+
         if(messageTx != NULL) {
-    
             if(sendto(remoteSocketDescriptor, messageTx, MSG_MAX_LEN, 0, (struct sockaddr*)sinRemote, sizeof(*sinRemote)) == -1){
                 perror("Unable to send the message");
+            }
+            if(messageTx[0] == '!' && messageTx[1] == '\0'){
+                // This way we still SEND the ! so that the other person will quit too!
+                free(messageTx);
+                signalShutdown();
+                break;
             }
             free(messageTx);
         }
     }
-    
+    while(1){ pthread_testcancel(); }
+    //return NULL;
 }
 
 void Network_shutdown(){
-    
+    printf("Network Shutdown...\n");
 
-    //pthread_cancel(tReceiverPID);
-    //pthread_cancel(tSenderPID);
-    pthread_join(tReceiverPID, NULL);
-    pthread_join(tSenderPID, NULL);
+    // receiv thread cancel and join
+    if (pthread_cancel(tReceiverPID) != 0){ printf("Error cancelling receivr\n");}
+    printf("    Network recvthread cancelled\n");
+    if (pthread_join(tReceiverPID, NULL) != 0){ printf("Error joining receivr\n");}
+    printf("    Network recvthread joined\n");
+
+    // sender thread cancel and join
+    if (pthread_cancel(tSenderPID) != 0){ printf("Error cancelling sender\n");}
+    printf("    Network sendthread cancelled\n");
+    if (pthread_join(tSenderPID, NULL) != 0){ printf("Error joining sender\n");}
+    printf("    Network sendthread joined\n");
+
+    // free address info
+    freeaddrinfo(localAddressInfoRX);
+    freeaddrinfo(localAddressInfoTX);
+
+    // close sockets
     close(localSocketDescriptor);
+    printf("    Network localsocket closed\n");
     close(remoteSocketDescriptor);
+    printf("    Network remotesocket closed\n");
 }
