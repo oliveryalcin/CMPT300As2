@@ -20,11 +20,9 @@ static pthread_t tKeyboard;    // Keyboard thread (monitors input from keyboard)
 static List* kList;
 static pthread_mutex_t* sharedlistMutex;
 static char* msg;
-//static char* dynamicMessage;
 
 /* read_stdin : reads input from stdin (keyboard/terminal)*/
 void* read_stdin(void* unused){
-    // TODO:
     char buffer[1024];      // Buffer to store user input
     ssize_t bytes_read;     // number of bytes read
     size_t nbytes;          // number of bytes to attempt to read
@@ -36,7 +34,7 @@ void* read_stdin(void* unused){
 
         if (bytes_read == -1) {
             perror("Error reading from terminal");
-            //return 1;
+            exit(0);
         }
 
         // Check if the user pressed Enter (newline character)
@@ -47,9 +45,9 @@ void* read_stdin(void* unused){
 
             pthread_mutex_lock(sharedlistMutex);
             {
-            msg = malloc(nbytes);
-            memcpy(msg, buffer, nbytes);
-            List_prepend(kList, msg);
+                msg = malloc(nbytes);
+                memcpy(msg, buffer, nbytes);
+                List_prepend(kList, msg);
             }
             pthread_mutex_unlock(sharedlistMutex);
         }
@@ -57,11 +55,11 @@ void* read_stdin(void* unused){
     return NULL;
 }
 
+
 /* Keyboard_init: initialize thread */
 int Keyboard_init(List* klist, pthread_mutex_t* keyTXlistMutex){
     kList = klist;
     sharedlistMutex = keyTXlistMutex;
-    //dynamicMessage = malloc(DYNAMIC_LEN);
     if (pthread_create(&tKeyboard, NULL, read_stdin, NULL) != 0){
         perror("Error creating keyboard thread\n");
         return -1;
@@ -72,24 +70,31 @@ int Keyboard_init(List* klist, pthread_mutex_t* keyTXlistMutex){
 
 
 /* Keyboard_shutdown: shutdown thread */
-void Keyboard_shutdown(){
-    printf("Keyboard Shutdown...\n");
+int Keyboard_shutdown(void){
+    //printf("Keyboard Shutdown...\n");
 
     if(pthread_cancel(tKeyboard) != 0){     // cancel thread
-        printf("Error cancelling keyboard\n");
+        perror("Error cancelling keyboard\n");
+        return -1;
     }      
-    printf("    Keyboard thread cancelled\n");
+    //printf("    Keyboard thread cancelled\n");
 
     if (pthread_join(tKeyboard, NULL) != 0){ // waits for thread to finish
-        printf("Error joining keyboard\n");
+        perror("Error joining keyboard\n");
+        return -1;
     }
-    printf("    Keyboard thread joined\n");
+    //printf("    Keyboard thread joined\n");
 
     // cleanup memory
     /*if (msg){
         free(msg);
-        msg = NULL;
-    }*/    
+    }*/
+
+    // dereference pointers
+    msg = NULL;
+    kList = NULL;
+    sharedlistMutex = NULL;
+    return 1;
 }
 
 

@@ -4,7 +4,7 @@
 #include "list.h"
 
 int Screen_init(List *sList, pthread_mutex_t *screenRXlistMutex, char* hostNameArg);
-void Screen_shutdown(void);
+int Screen_shutdown(void);
 void* write_stdout(void *unused);
 
 #endif

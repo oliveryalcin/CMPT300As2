@@ -11,16 +11,16 @@
 #include "list.h"
 
 // Constructor, grabs lists created in main() grabs console arguments to initialize sockets.
-void initNetwork(char* sLocalPort,char* sRemotePort, char* sHostName, List* keyTXlist, List* screenRXlist, pthread_mutex_t* keyTXlistMutex, pthread_mutex_t* screenRXlistMutex);
+int initNetwork(char* sLocalPort,char* sRemotePort, char* sHostName, List* keyTXlist, List* screenRXlist, pthread_mutex_t* keyTXlistMutex, pthread_mutex_t* screenRXlistMutex);
 
-void initReceiver();
+int initReceiver();
 
 void* receiveMessage(void* unused);
 
-void initSender();
+int initSender();
 
 void* sendMessage(void* unused);
 
-void Network_shutdown();
+int Network_shutdown(void);
 
 #endif

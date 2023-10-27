@@ -4,7 +4,7 @@
 #include "list.h"
 
 int Keyboard_init(List* klist, pthread_mutex_t* keyTXlistMutex);
-void Keyboard_shutdown();
+int Keyboard_shutdown(void);
 void* read_stdin(void* unused);
 
 #endif

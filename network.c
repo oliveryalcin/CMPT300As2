@@ -37,8 +37,11 @@ static pthread_t tSenderPID;
 static pthread_mutex_t* senderListMutex;
 static pthread_mutex_t* receiverListMutex;
 
+static char* messageTx;
 
-void initNetwork(char* sLocalPort,char* sRemotePort, char* sHostName, List* keyTXlist, List* screenRXlist,pthread_mutex_t* keyTXlistMutex, pthread_mutex_t* screenRXlistMutex){
+
+/* initNetwork - initialize the network*/
+int initNetwork(char* sLocalPort,char* sRemotePort, char* sHostName, List* keyTXlist, List* screenRXlist,pthread_mutex_t* keyTXlistMutex, pthread_mutex_t* screenRXlistMutex){
     localPort = sLocalPort;
     remotePort = sRemotePort;
     hostName = sHostName;
@@ -49,25 +52,27 @@ void initNetwork(char* sLocalPort,char* sRemotePort, char* sHostName, List* keyT
     senderListMutex = keyTXlistMutex;
     receiverListMutex = screenRXlistMutex;
 
-    initSender();
-    initReceiver();
+    if (initSender() < 0){
+        return -1;
+    }
+    if (initReceiver() < 0){
+        return -1;
+    }
 
-    pthread_create(
-        &tReceiverPID, // PID
-        NULL, // Attributes
-        receiveMessage, // Function
-        NULL
-    );
-    pthread_create(
-        &tSenderPID, // PID
-        NULL, // Attributes
-        sendMessage, // Function
-        NULL
-    );
+    if (pthread_create(&tReceiverPID, NULL, receiveMessage, NULL) != 0){
+        perror("Error creating receiver thread\n");
+        return -1;
+    }
+    if (pthread_create(&tSenderPID,NULL,sendMessage,NULL) != 0){
+        perror("Error creating sender thread\n");
+        return -1;
+    }
+    return 1;
 }
 
 
-void initReceiver(){
+/* initReceiver - initialize the Receiver*/
+int initReceiver(){
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
 
@@ -76,27 +81,30 @@ void initReceiver(){
 
     if(getaddrinfo(NULL, localPort, &hints, &localAddressInfoRX)){ //initializes localAddressINFO and sets receiver to localhost
         perror("Unable to obtain local address info");
+        return -1;
     }
     sinLocal = (struct sockaddr_in*)localAddressInfoRX->ai_addr;
     localSocketDescriptor = socket(PF_INET, SOCK_DGRAM, 0);
     if (localSocketDescriptor == -1){
         close(localSocketDescriptor);
         perror("ERROR in INIT RECEIVER Socket creation");
+        return -1;
     }
 
     if (bind(localSocketDescriptor, (struct sockaddr*) sinLocal, sizeof(*sinLocal)) == -1){
         close(localSocketDescriptor);
         perror("ERROR in INIT RECEIVER Socket creation");
+        return -1;
     }
-    printf("Oliver's Receiver Network Listening on UDP port %s:\n", localPort);
-    
+    printf("Listening on UDP port %s:\n", localPort);
+    return 1;
 }
 
 
-// Producer 
+/* receiveMessage - RX thread will be running this function */
+//                  it is a Producer.
 void* receiveMessage(void* unused){
     while(1){
-        //printf("receiveMessage(...)");
         char messageRx[MSG_MAX_LEN];
         unsigned int sin_len = sizeof(sinLocal);
         int bytesRx = recvfrom(localSocketDescriptor, messageRx, MSG_MAX_LEN, 0, (struct sockaddr *) &sinLocal, &sin_len);
@@ -111,29 +119,33 @@ void* receiveMessage(void* unused){
         messageRx[terminateIdx] = '\0';
 
         if(messageRx[0] == '!' && messageRx[1] == '\0'){
-            // as soon as we receive ! we quit
+            // as soon as we receive ! we signal a shutdown
             signalShutdown();
             break;
         }
         
         // Critical Section add messageRx to list
         pthread_mutex_lock(receiverListMutex);
-        List_prepend(rxList, messageRx);
+        {
+            List_prepend(rxList, messageRx);
+        }
         pthread_mutex_unlock(receiverListMutex);
         pthread_testcancel();
     }
     while(1){ pthread_testcancel(); }
-    //return NULL;
+    return NULL;
 }
 
 
-void initSender(){ 
+/* initSender - initialize the sender */
+int initSender(){ 
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
 
     if(getaddrinfo(hostName, remotePort, &hints, &localAddressInfoTX)){ //initializes localAddressINFO and sets receiver to localhost
         perror("Unable to obtain local address info");
+        return -1;
     }
     sinRemote = (struct sockaddr_in*)localAddressInfoTX->ai_addr;
 
@@ -141,18 +153,20 @@ void initSender(){
     if (remoteSocketDescriptor == -1){ 
         close(remoteSocketDescriptor);
         perror("ERROR in INIT Sender Socket creation");
+        return -1;
     }
-    
+    return 1;
 }
 
-// Consumer
-void* sendMessage(void* unused){
 
+/* sendMessage - TX thread will be running this function */
+//               it is a Consumer
+void* sendMessage(void* unused){
     while(1){
-        //printf("sendMessage(...)");
-        //Critical section
         pthread_mutex_lock(senderListMutex);
-        char* messageTx = (char*)List_remove(txList);
+        {
+            messageTx = (char*)List_remove(txList); //Critical section
+        }
         pthread_mutex_unlock(senderListMutex);
         pthread_testcancel();
 
@@ -170,31 +184,67 @@ void* sendMessage(void* unused){
         }
     }
     while(1){ pthread_testcancel(); }
-    //return NULL;
+    return NULL;
 }
 
-void Network_shutdown(){
-    printf("Network Shutdown...\n");
+
+/* Network Shutdown */
+int Network_shutdown(void){
+    //printf("Network Shutdown...\n");
 
     // receiv thread cancel and join
-    if (pthread_cancel(tReceiverPID) != 0){ printf("Error cancelling receivr\n");}
-    printf("    Network recvthread cancelled\n");
-    if (pthread_join(tReceiverPID, NULL) != 0){ printf("Error joining receivr\n");}
-    printf("    Network recvthread joined\n");
+    if (pthread_cancel(tReceiverPID) != 0){
+        perror("Error cancelling receivr\n");
+        return -1;
+    }
+    //printf("    Network recvthread cancelled\n");
+    if (pthread_join(tReceiverPID, NULL) != 0){
+        perror("Error joining receivr\n");
+        return -1;
+    }
+    //printf("    Network recvthread joined\n");
 
     // sender thread cancel and join
-    if (pthread_cancel(tSenderPID) != 0){ printf("Error cancelling sender\n");}
-    printf("    Network sendthread cancelled\n");
-    if (pthread_join(tSenderPID, NULL) != 0){ printf("Error joining sender\n");}
-    printf("    Network sendthread joined\n");
+    if (pthread_cancel(tSenderPID) != 0){
+        perror("Error cancelling sender\n");
+        return -1;
+    }
+    //printf("    Network sendthread cancelled\n");
+    if (pthread_join(tSenderPID, NULL) != 0){
+        perror("Error joining sender\n");
+        return -1;
+    }
+    //printf("    Network sendthread joined\n");
 
     // free address info
     freeaddrinfo(localAddressInfoRX);
     freeaddrinfo(localAddressInfoTX);
 
     // close sockets
-    close(localSocketDescriptor);
-    printf("    Network localsocket closed\n");
-    close(remoteSocketDescriptor);
-    printf("    Network remotesocket closed\n");
+    if (close(localSocketDescriptor) != 0){
+        perror("Error closing localSocketDescriptor\n");
+        return -1;
+    }
+    //printf("    Network localsocket closed\n");
+    if (close(remoteSocketDescriptor) != 0){
+        perror("Error closing remoteSocketDescriptor\n");
+        return -1;
+    }
+    //printf("    Network remotesocket closed\n");
+
+    // dereference pointers
+    sinLocal = NULL;
+    sinRemote = NULL;
+    localPort = NULL;
+    remotePort = NULL;
+    hostName = NULL;
+    localAddressInfoRX = NULL;
+    localAddressInfoTX = NULL;
+    txList = NULL;
+    rxList = NULL;
+    senderListMutex = NULL;
+    receiverListMutex = NULL;
+    messageTx = NULL;
+
+    return 1;
 }

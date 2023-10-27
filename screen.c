@@ -14,11 +14,12 @@ static pthread_t tScreen;    // Screen thread (consumes input from network)
 static List* rxList;
 static pthread_mutex_t* sharedlistMutex;
 static char* hostName;
+char* rxMessage;
 
-//unsure if loop is necessary here since there is no Keyboard I/O waits occuring? 
+/* write_stdout - function that screen thread will be running */
 void* write_stdout(void *unused){
     while(1){
-        char* rxMessage = NULL;
+        rxMessage = NULL;
         pthread_mutex_lock(sharedlistMutex);
         {
             rxMessage = List_remove(rxList); //pop item from list and update list
@@ -41,7 +42,8 @@ void* write_stdout(void *unused){
 }
     
 
-int Screen_init(List *sList, pthread_mutex_t *screenRXlistMutex, char* hostNameArg){ // Thread initializer in order to output messages
+/* Screen_init */
+int Screen_init(List *sList, pthread_mutex_t *screenRXlistMutex, char* hostNameArg){
     rxList = sList;
     sharedlistMutex = screenRXlistMutex;
     hostName = hostNameArg;
@@ -50,22 +52,33 @@ int Screen_init(List *sList, pthread_mutex_t *screenRXlistMutex, char* hostNameA
         return -1;
     }
 
-    return 1; //keeping same structure as you
+    return 1;
 }
 
-void Screen_shutdown(){
-    printf("Screen Shutdown...\n");
+
+/* Screen_shutdown */
+int Screen_shutdown(void){
+    //printf("Screen Shutdown...\n");
 
     if (pthread_cancel(tScreen) != 0) {       // cancel thread
-        printf("Error cancelling screen\n");
+        perror("Error cancelling screen\n");
+        return -1;
     }
-    printf("    Screen thread cancelled\n");
+    //printf("    Screen thread cancelled\n");
 
     if (pthread_join(tScreen, NULL) != 0){  // waits for thread to finish
-        printf("Error joining screen\n");
+        perror("Error joining screen\n");
+        return -1;
     } 
-    printf("    Screen thread joined\n");
+    //printf("    Screen thread joined\n");
 
+    // dereference pointers
+    rxList = NULL;
+    sharedlistMutex = NULL;
+    hostName = NULL;
+    rxMessage = NULL;
+
+    return 1;
 }
 
 
